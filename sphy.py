@@ -28,7 +28,7 @@ import pcraster as pcr
 import pcraster.framework as pcrm
 import numpy as np
 
-tic = time.clock()
+tic = time.time()
 
 # Read the model configuration file
 config = configparser.RawConfigParser()
@@ -84,6 +84,9 @@ class sphy(pcrm.DynamicModel):
 		self.outpath = config.get('DIRS', 'outputdir')
 
 		#-set the timing criteria
+		sy1 = config.getint('TIMING', 'startyear_timestep1')
+		sm1 = config.getint('TIMING', 'startmonth_timestep1')
+		sd1 = config.getint('TIMING', 'startday_timestep1')
 		sy = config.getint('TIMING', 'startyear')
 		sm = config.getint('TIMING', 'startmonth')
 		sd = config.getint('TIMING', 'startday')
@@ -92,6 +95,7 @@ class sphy(pcrm.DynamicModel):
 		ed = config.getint('TIMING', 'endday')
 		self.startdate = self.datetime.datetime(sy,sm,sd)
 		self.enddate = self.datetime.datetime(ey,em,ed)
+		self.ts1date = self.datetime.datetime(sy1,sm1,sd1)
 		self.dateAfterUpdate = self.startdate - self.datetime.timedelta(days=1)  #-only required for glacier retreat (create dummy value here to introduce the variable)
 
 		#-set date input for reporting
@@ -485,7 +489,7 @@ class sphy(pcrm.DynamicModel):
 	#-initial section
 	def initial(self):
 		#-timer
-		self.counter = 0
+		self.counter = (self.startdate - self.ts1date).days
 		#-initial date
 		self.curdate = self.startdate
 
@@ -852,7 +856,7 @@ class sphy(pcrm.DynamicModel):
 			GlacTable_MODid = GlacTable_MODid.groupby(GlacTable_MODid.index).sum()
 			GlacTable_MODid.fillna(0., inplace=True)
 			#-Report pcraster map of glacier depth
-			iceDepth = pcr.numpy.zeros(self.ModelID_1d.shape)
+			iceDepth = np.zeros(self.ModelID_1d.shape)
 			iceDepth[self.GlacierKeys] = GlacTable_MODid['ICE_DEPTH']
 			iceDepth = iceDepth.reshape(self.ModelID.shape)
 			iceDepth = pcr.numpy2pcr(pcr.Scalar, iceDepth, self.MV)
@@ -959,6 +963,6 @@ for i in tssfiles:
 		os.remove(SPHY.outpath + i)
 	shutil.move(i, SPHY.outpath)
 
-toc = time.clock()
+toc = time.time()
 dt = toc - tic
 print('Simulation succesfully completed in '+str(dt)+' seconds!')
